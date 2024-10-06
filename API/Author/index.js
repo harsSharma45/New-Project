@@ -13,11 +13,11 @@ Router.get("/", async (req, res) => {
 });
 
 // Get specific author by ID
-Router.get('/:id', async (req, res) => {
+Router.get('/:authorId', async (req, res) => {
     try {
-        const author = await AuthorModel.findOne({ id: req.params.id });
+        const author = await AuthorModel.findOne({ id: req.params.authorId });
         if (!author) {
-            return res.status(404).json({ error: `No author found for ID ${req.params.id}` });
+            return res.status(404).json({ error: `No author found for ID ${req.params.authorId}` });
         }
         return res.json({ author });
     } catch (error) {
@@ -50,15 +50,15 @@ Router.post("/add", async (req, res) => {
 });
 
 // Update author name by ID
-Router.put("/update/:id/:name", async (req, res) => {
+Router.put("/update/:authorId/:name", async (req, res) => {
     try {
         const updatedAuthor = await AuthorModel.findOneAndUpdate(
-            { id: req.params.id },
+            { id: req.params.authorId },
             { name: req.params.name },
             { new: true }
         );
         if (!updatedAuthor) {
-            return res.status(404).json({ error: `No author found for ID ${req.params.id}` });
+            return res.status(404).json({ error: `No author found for ID ${req.params.authorId}` });
         }
         return res.json({ author: updatedAuthor });
     } catch (error) {

@@ -2,6 +2,15 @@ const express = require("express");
 const Router = express.Router();
 const BookModel = require("../../database/book");
 const AuthorModel = require("../../database/author");
+const { check, validationResult } = require("express-validator");
+
+// Validation middleware for adding a new book
+const validateBook = [
+    check('newBooks.title').notEmpty().withMessage('Title is required'),
+    check('newBooks.ISBN').notEmpty().withMessage('ISBN is required'),
+    check('newBooks.category').notEmpty().withMessage('Category is required'),
+    check('newBooks.language').notEmpty().withMessage('Language is required'),
+];
 
 // Get all books
 Router.get('/', async (req, res) => {
@@ -13,7 +22,7 @@ Router.get('/', async (req, res) => {
     }
 });
 
-// Get a specific book based on ISBN
+// Get a book by ISBN
 Router.get('/is/:isbn', async (req, res) => {
     try {
         const book = await BookModel.findOne({ ISBN: req.params.isbn });
@@ -26,7 +35,7 @@ Router.get('/is/:isbn', async (req, res) => {
     }
 });
 
-// Get books based on category
+// Get books by category
 Router.get('/c/:category', async (req, res) => {
     try {
         const books = await BookModel.find({ category: req.params.category });
@@ -39,7 +48,7 @@ Router.get('/c/:category', async (req, res) => {
     }
 });
 
-// Get books based on language
+// Get books by language
 Router.get('/l/:language', async (req, res) => {
     try {
         const books = await BookModel.find({ language: req.params.language });
@@ -50,7 +59,12 @@ Router.get('/l/:language', async (req, res) => {
 });
 
 // Add a new book
-Router.post("/add", async (req, res) => {
+Router.post("/add", validateBook, async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     try {
         const { newBooks } = req.body;
         const addedBook = await BookModel.create(newBooks);
@@ -66,8 +80,13 @@ Router.put("/update/title/:isbn", async (req, res) => {
         const updatedBook = await BookModel.findOneAndUpdate(
             { ISBN: req.params.isbn },
             { title: req.body.bookTitle },
-            { new: true }
+            { new: true, runValidators: true }
         );
+
+        if (!updatedBook) {
+            return res.status(404).json({ error: `No book found for ISBN ${req.params.isbn}` });
+        }
+
         return res.json({ book: updatedBook });
     } catch (error) {
         return res.status(500).json({ error: error.message });
@@ -82,6 +101,10 @@ Router.put("/update/author/:isbn/:authorID", async (req, res) => {
             { $addToSet: { authors: req.params.authorID } },
             { new: true }
         );
+
+        if (!updatedBook) {
+            return res.status(404).json({ error: `No book found for ISBN ${req.params.isbn}` });
+        }
 
         const updatedAuthor = await AuthorModel.findOneAndUpdate(
             { id: req.params.authorID },
@@ -103,13 +126,16 @@ Router.put("/update/author/:isbn/:authorID", async (req, res) => {
 Router.delete("/delete/:isbn", async (req, res) => {
     try {
         const deletedBook = await BookModel.findOneAndDelete({ ISBN: req.params.isbn });
-        return res.json({ book: deletedBook });
+        if (!deletedBook) {
+            return res.status(404).json({ error: `No book found for ISBN ${req.params.isbn}` });
+        }
+        return res.json({ message: "Book deleted successfully", book: deletedBook });
     } catch (error) {
         return res.status(500).json({ error: error.message });
     }
 });
 
-// Delete an author from a book
+// Remove an author from a book by ISBN
 Router.delete("/delete/author/:isbn/:authorId", async (req, res) => {
     try {
         const updatedBook = await BookModel.findOneAndUpdate(
